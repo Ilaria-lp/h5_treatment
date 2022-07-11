@@ -39,7 +39,7 @@ def check_bms(bms):
             break                    
     print('No beam in '+ str(last) + ' pixels.')
     return(beam_lost, len(bms))
-
+    
     
 def count_steps(x,y):
     # extracts the map size from the unique positions of X e Y
@@ -54,7 +54,6 @@ def count_steps(x,y):
     
     return(shape_x,shape_y)
      
-
 
 def cut_reshape(in_file, out_fold):
     dest_path = out_fold
@@ -125,4 +124,4 @@ def cut_reshape(in_file, out_fold):
                     s = s[0:total_point]
                     #print("New shape: ",s.shape)
                     fout.create_dataset(run+PATH_SCALAR+"/"+scalarData, data=s)
-    
+  
