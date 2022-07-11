@@ -21,8 +21,7 @@ def convert(map_name, out_path):
     
     txt_file_name = map_name.split('/')[-1].split('.')
     txt_file_name[-1] = 'txt'
-    txt_file = os.path.join( out_path, map_name.split('.')[0] + '.csv')
-    
+    txt_file = os.path.join( out_path, map_name.split('.')[0] + '.csv')  
 
     with h5py.File(map_name, 'r') as f, open(txt_file, 'w') as txt:
         run = f.keys()[0]
@@ -44,7 +43,6 @@ def convert(map_name, out_path):
             for ch in range(2048):
                 txt.write(',{}'.format(spectra[i][ch]))
             
-
 def run():
     print('-------------------------------------------------\n')
     print('---------           Welcome!         ------------\n')
@@ -74,7 +72,6 @@ def run():
             filename = filename[2:]
             convert(filename, out_path)
             print('\n --> Map {0}/{1} successfully converted.\n'.format(i+1, len(file_list)))
-
 
         print('\n --> Have a nice day!')
 
