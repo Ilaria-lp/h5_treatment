@@ -1,5 +1,5 @@
 # h5_treatment
-Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline
+Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline - Elettra Synchrotron
 
 Maps to be checked/cut and executable must be in the same folder.
 Double click on the program and wait for it to run. New files will be saved in a subfolder.
@@ -14,7 +14,7 @@ reshape_XRF-MAPS
 
 cut_and_reshape_XRF-maps
     fixes incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels.
-    New files are reshaped so that you don't need to input rows and columns in ROI imaging
+    New files are reshaped so that you don't need to input rows and columns in ROI imaging tool (PyMCA software)
 
 Documentation writing in progress...
 
