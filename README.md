@@ -2,13 +2,11 @@
 Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline - Elettra Synchrotron
 Maps to be checked/cut and executable must be in the same folder.
 
-**Linux environment:**
-
+- **Linux environment**  
 You can run the scripts from the terminal and follow the progress of the data handling: just type ```python name-of-the-script.py```
 Alternatively, you can double click on the icon and wait for it to run: new files will be saved in a subfolder.
 
-**Windows environment:**
-
+- **Windows environment**  
 Make sure you have **python 3** installed and that you have the python packages h5py and numpy installed, then double click on the icon.
 
 ## reshape_XRF-MAPS 
@@ -29,5 +27,5 @@ New files are reshaped so that you don't need to input rows and columns in ROI i
 
 --> Further documentation writing in progress...
 
-(Be patient...or ask directly to the author!)
+(Be patient...or ask directly to the author!)  
 ilaria.carlomagno@elettra.eu
