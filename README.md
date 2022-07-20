@@ -18,15 +18,15 @@ To solve this issue, you can use a python script to reshape the h5 map. The scri
 The new files can be automatically opened by PyMCA in the right (row,column) format.
 
 ## cut_XRF-MAPS
-Fix incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels
+To fix incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels
 
 ## cut_and_reshape_XRF-MAPS
-Fixes incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels.  
+To fix incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels.  
 New files are reshaped so that you don't need to input rows and columns in ROI imaging tool (PyMCA software)
 
 ## convert_h5_to_orange
-Fix compatibility issues with Orange software.  
-Saves a ```.csv``` file with the X and Y coordinates, the I0 (bms), and the channels of the fluorescence detector.
+To fix compatibility issues with Orange software.  
+Output: ```.csv``` files with X and Y coordinates, I0 (bms), and all the 2048 channels of the fluorescence detector.
 
 
 --> Further documentation writing in progress...
