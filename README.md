@@ -24,7 +24,9 @@ Fix incomplete data collection (due to beam dumps or manual interruption) and ma
 Fixes incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels.  
 New files are reshaped so that you don't need to input rows and columns in ROI imaging tool (PyMCA software)
 
-
+## convert_to_Orange
+Fix compatibility issues with Orange software.  
+Saves a ```.csv``` file with the X and Y coordinates, the I0 (bms), and the channels of the fluorescence detector.
 
 
 --> Further documentation writing in progress...
