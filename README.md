@@ -27,7 +27,7 @@ New files are reshaped so that you don't need to input rows and columns in ROI i
 
 
 
---> Furhter documentation writing in progress...
+--> Further documentation writing in progress...
 
 (Be patient...or ask directly to the author!)
 ilaria.carlomagno@elettra.eu
