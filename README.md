@@ -20,7 +20,7 @@ The new files can be automatically opened by PyMCA in the right (row,column) for
 ## cut_XRF-MAPS
 Fix incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels
 
-## cut_and_reshape_XRF-maps
+## cut_and_reshape_XRF-MAPS
 Fixes incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels.  
 New files are reshaped so that you don't need to input rows and columns in ROI imaging tool (PyMCA software)
 
