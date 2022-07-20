@@ -26,7 +26,7 @@ New files are reshaped so that you don't need to input rows and columns in ROI i
 
 ## convert_h5_to_orange
 To fix compatibility issues with Orange software.  
-Output: ```csv``` files with X and Y coordinates, I0 (bms), and all the 2048 channels of the fluorescence detector.
+Output: ```.csv``` files with X and Y coordinates, I0 (bms), and all the 2048 channels of the fluorescence detector.
 
 
 --> Further documentation writing in progress...
