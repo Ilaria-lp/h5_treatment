@@ -2,16 +2,16 @@
 Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline - Elettra Synchrotron
 Maps to be checked/cut and executable must be in the same folder.
 
-- Linux environment:
+--> Linux environment:
 You can run the scripts from the terminal and follow the progress of the data handling --> type "python name-of-scripts.py"
 Alternatively, you can double click on the icon and wait for it to run: wew files will be saved in a subfolder.
 
-- Windows environment:
+--> Windows environment:
 Make sure you have python 3 installed and that you have the python packages h5py and numpy installed;
 double click on the icon.
 
 
--- reshape_XRF-MAPS
+- reshape_XRF-MAPS
 The XRF maps produced at the XRF beamline (h5 files) have to be manually reshaped when imported in PyMCA - ROI imaging tool.
 This means that you have to know how many columns/rows are there in your image, otherwise the map will look "bad" or will not make sense (in the best case) or artefacts may appear (worst case, because you don't realise what happened!).
 
