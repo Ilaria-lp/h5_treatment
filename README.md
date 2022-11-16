@@ -28,6 +28,10 @@ New files are reshaped so that you don't need to input rows and columns in ROI i
 To fix compatibility issues with Orange software.  
 Output: ```.csv``` files with X and Y coordinates, I0 (bms), and all the 2048 channels of the fluorescence detector.
 
+## extract_new_roi_from_h5
+To extract XAS spectra using new ROIs from the one(s) defined when data collection was started. The user is asked to input the new ROI using the following syntax to indicate the first and last channels to be used: [first, last]
+Output: ```.txt``` file with energy, I0, roi_new, alfafluo_new columns. roi_new is the integral of the ICR within the channels selected, alfafluo_new is the absorption coefficient calculated as ratio roi_new/I0.
+
 
 --> Further documentation writing in progress...
 
