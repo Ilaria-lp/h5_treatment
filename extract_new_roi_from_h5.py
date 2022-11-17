@@ -57,7 +57,14 @@ def process_hdf_file(file_name, roi, include_motors = False):
                 alfafluo_new.append( roi_new [point] / bms[point])
             
             title_string += roi_string
+            title_string += ', deadtime (%)'
             got_bruker = True
+            acq_time = f['bruker/acquisitiontime'][()]
+            deadtime = []
+            livetime = np.array(f['bruker/livetime'])
+            for i in range(len(triggers)):
+                dt = ( (acq_time - livetime[i]) / acq_time * 100)
+                deadtime.append(dt)            
         except Exception as e:
             got_bruker = False
             # print 'Bruker error:', e.message
@@ -76,6 +83,7 @@ def process_hdf_file(file_name, roi, include_motors = False):
                 data_line = separator.join([data_line, str(np.round(keithley[i], DECIMALS)), str(np.round(alphatrans[i], DECIMALS))])
             if got_bruker:
                 data_line = separator.join([data_line, str(roi_new[i]), str(np.round(alfafluo_new[i],DECIMALS))])
+                data_line = separator.join([data_line, str(deadtime[i])])
             tf.write(data_line + '\n')
         print 'Saved file', target_file
 
