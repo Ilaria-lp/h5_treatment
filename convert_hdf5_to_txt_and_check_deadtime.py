@@ -77,8 +77,10 @@ def process_hdf_file(file_name, include_motors = False):
             got_bruker = True
             acq_time = f['bruker/acquisitiontime'][()]
             deadtime = []
+            livetime = np.array(f['bruker/livetime'])
             for i in range(len(triggers)):
-                deadtime.append( (acq_time - f['bruker/livetime'][i]) / acq_time * 100)
+                dt = ( (acq_time - livetime[i]) / acq_time * 100)
+                deadtime.append(dt)
             if np.amax(deadtime) > 10:
                 print ('Max deadtime exceeded 10%! Inspect data with care!\n')
             else:
