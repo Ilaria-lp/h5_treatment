@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 #This script does 4 things:
-# 1) It checks for beam dumps during MAP acquisition
-#   In case BMS is < BMS_MIN, it reshapes the map discarding void pixels
-# 2) It discards half-filled rows/columns in case of manual interruption of the map
-# 3) rotates the maps when the acquisition was done "column-first"
-# 4) reshapes the maps so that PyMCA already knows how many columns and rows there are in each file
+# 1) It checks for beam dumps during MAP acquisition. In case BMS is < BMS_MIN, it reshapes the map discarding void pixels.
+# 2) It discards half-filled rows/columns in case of incomplete map acquisition.
+# 3) It rotates the maps when the acquisition was done "column-first" (moving the vertical motor first).
+# 4) It reshapes the maps so that PyMCA already knows how many rows and columns there are in each file.
 
 import glob
 import h5py
@@ -17,15 +16,12 @@ import sys
 
 from mylib import check_bms, count_steps, orientation
 
-BMS_MIN = 1e-2
 PRECISION = 5
 EXT = "h5"
 PATH_SCALAR = "/Measurement/TransientScalarData"
 PATH_VECTOR = "/Measurement/TransientVectorData"
 NEW_FOLDER = "/cut-reshaped/"
 NEWNAME_APP = "_processed.h5"
-
-
 
 def cut_reshape(in_file, out_fold):
     
@@ -37,13 +33,12 @@ def cut_reshape(in_file, out_fold):
         for run in f.keys():
             print ("Run: %s" %run)
             
-            x = f[run+PATH_SCALAR+"/X"][...]
-            y = f[run+PATH_SCALAR+"/Y"][...]
+            x = f[run+PATH_SCALAR+"/X"][...]  # at the XRF beamline this is the vertical motor
+            y = f[run+PATH_SCALAR+"/Y"][...]  # and this is the horizontal motor
             
-        # when X moves first, in order to see the map on PyMCA, the number of 
-        # columns to enter is the number of rows. The map will appear rotated.  
-        # The following section fixes this issue. The output file will be shown 
-        # in the correct orientation on PyMCA.
+            # when X moves first, in order to see the map on PyMCA, the number of 
+            # columns to enter is the number of rows. The map will appear rotated.  
+            # The following section fixes this issue, inverting X and Y.
             try:
                 x, y, move_ver = orientation(x, y)
             except ValueError:
@@ -56,7 +51,7 @@ def cut_reshape(in_file, out_fold):
             print("Original map size: (%d,%d), total point=%d" % (shape_x, shape_y, total_points) )
 
 
-            # check for beam dump on the BMS signal
+            # check for beam dump/drift on the BMS signal
             bms = f[run+PATH_SCALAR+"/BMS-T-Average"][...]
             beam_lost, valid_pixels = check_bms(bms)
             
@@ -65,12 +60,12 @@ def cut_reshape(in_file, out_fold):
                 break
 
             if move_ver:
-                print('MOVE VERTICAL')
+                print('VERTICAL MOTOR MOVED FIRST.')
                 row = shape_x
                 col = np.round(valid_pixels/shape_x)
                 new_map = new_map[:-3] + '_rot.h5'
             else:
-                print('MOVE HORIZONTAL')
+                print('HORIZONTAL MOTOR MOVED FIRST.')
                 col = shape_y
                 row = np.round(valid_pixels/shape_y)
                                   
@@ -85,15 +80,12 @@ def cut_reshape(in_file, out_fold):
             
             if (row*col==shape_x*shape_y):
                 print('This map is ok! No cutting, just reshaping!\n')
-                print('Original size:', shape_x, shape_y)
-                print('New size:', row, col)
-                             
+                print('Map size:', shape_x, shape_y)
 
             with h5py.File(new_map, 'w') as fout:
                 total_point = row * col
-                # print("Map size: (%d,%d), total point=%d\n" % (row, col, total_point))
                 
-                # print('\n--> Now reshaping TransientVectorData:')
+                # --> Now reshaping TransientVectorData
                 for vectorData in f[run+PATH_VECTOR].keys():
 
                     v = f[run+PATH_VECTOR+"/"+vectorData][...]
@@ -107,8 +99,8 @@ def cut_reshape(in_file, out_fold):
                        print(v.shape)
 
                     fout.create_dataset(run+PATH_VECTOR+"/"+vectorData, data=v, compression = "gzip", shuffle=True)
-                #print('\n--> Done! Now reshaping TransientScalarData:')
                 
+                # --> Now reshaping TransientScalarData
                 for scalarData in f[run+PATH_SCALAR].keys():
                     s = f[run+PATH_SCALAR+"/"+scalarData][...]
                     s = s[0:total_point]
@@ -116,9 +108,7 @@ def cut_reshape(in_file, out_fold):
                         s = s.reshape(row, col)
                     if move_ver:
                         s = np.rot90(s, -1, axes=(1,0))
-
                     fout.create_dataset(run+PATH_SCALAR+"/"+scalarData, data=s)
-
 
 ####################################################################
 
