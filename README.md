@@ -1,6 +1,6 @@
 # h5_treatment
-Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline - Elettra Synchrotron  
-Maps to be checked/cut and executable must be in the same folder.
+Scripts for data manipulation and format conversion of h5 files generated at the XRF beamline (Elettra Synchrotron, Trieste, Italy).
+H5 files to be processed in the working path.
 
 - **Linux environment**  
 You can run the scripts from the terminal and follow the progress of the data handling: just type ```python name-of-the-script.py```  
@@ -15,7 +15,7 @@ This means that you have to know how many columns/rows are there in your image, 
 
 To solve this issue, you can use a python script to reshape the h5 map. The script will create a copy (you won't lose any data!) of your files into a subfolder named "reshaped".
 
-The new files can be automatically opened by PyMCA in the right (row,column) format.
+The new files can be automatically opened by PyMCA in the right (row, column) format.
 
 ## cut_XRF-MAPS
 To fix incomplete data collection (due to beam dumps or manual interruption) and makes a new file discarding the non-valid pixels
@@ -32,6 +32,13 @@ Output: ```.csv``` files with X and Y coordinates, I0 (bms), and all the 2048 ch
 To extract XAS spectra using new ROIs from the one(s) defined when data collection was started. The user is asked to input the new ROI using the following syntax to indicate the first and last channels to be used: [first, last]
 Output: ```.txt``` file with _energy, I0, roi_new, alfafluo_new_ columns. _roi_new_ is the integral of the ICR within the channels selected, _alfafluo_new_ is the absorption coefficient calculated as ratio roi_new/I0.
 
+## extract_doubleROI_fromh5
+--> Work with Sirius3 detector
+XSW on FeCo alloys - edition
+To extract XAS spectra using two ROIs Co (or Fe) plus an alternative one to be used for self-absorption correction. 
+At the moment, the script automatically checks the filename to choose between Co and Fe ROIs. The secondary ROI (for self absorption correction) is entered directly in the code.
+The script also checks for the deadtime of each of the 3 elements of the SDD detector. If one value is above 10%, the filename of the txt files gets a "CHECK_DEADTIME" addition at the end.
+Output: ```.txt``` file with _energy, theta/phi, I0, alfafluo_Fe_, _alfafluo-selfabsorption_ columns.
 
 --> Further documentation writing in progress...
 
