@@ -1,23 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import glob
 import h5py
-import itertools
 import numpy as np
-import os
-import sys
 
-BMS_MIN = 1e-2
+BMS_MIN = 1e-4
 PRECISION = 10**5
 PATH_SCALAR = "/Measurement/TransientScalarData"
-NEWNAME_APP = "_cut.h5"
 
 def check_bms(bms):
     beam_lost = False
             
     if bms.min() > BMS_MIN:
-        print("No beam dumps detected.")
+        print("\tNo beam dumps detected.")
         return (beam_lost, len(bms))
         # if all the pixels are valid, it ends here.
         
@@ -27,10 +22,10 @@ def check_bms(bms):
             beam_lost = True
         else:
             last-=1
-            print('bms_out = ', bms[::-1][0])
+            print('\tLast useful I0 value = %f' %(bms[::-1][0]))
+            print('\tI0 at start = %f' %(bms[::1][0]))
             break                    
-    print('No beam in '+ str(last+1) + ' pixels.')
-    print('Length of bms after the cut: ', len(bms))
+    print('  > > > Beam dump/drift: no beam in %s pixels.' %(last+1))
     return(beam_lost, len(bms))
 
 # gives the shape of the array by counting the numbers of different values    
@@ -56,25 +51,24 @@ def orientation(ver,hor):
     move_ver_first = False
  
     if (ver[1]!=ver[0]) and (hor[1]==hor[0]):
-        print('X (VER) moved first: swapped cols and rows')      
+        print('\tX (VER) moved first: the map will be rotated to fix data visualization on PyMCA.')      
         move_ver_first = True
         ver, hor = hor, ver        
         return ver, hor, move_ver_first
     
-    # when the horizontal motor moves first, no need to swap rows and columns
+    # when the horizontal motor moves first, no need to swap rows and columns.
+    # this is the most common situation, where no further action is needed.
     elif (hor[1]!=hor[0]) and (ver[1]==ver[0]):
-        print('Y (HOR) moved first: no swapping of rows and cols')
         return ver, hor, move_ver_first
     # if both motors are moved or if none moves, then the map is somewhat broken.
     else:
-        raise ValueError('Something is wrong with this map. Please check the file!')
-
+        raise ValueError('\tSomething is wrong with this map. Please check the file!')
+        print('\txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
 
 def _read_positions(filename,PATH_SCALAR):
-    with h5py.File(filename, 'r') as f:
+    f = h5py.File(filename, 'r')
                 
-        for run in f.keys():
-            print ("Run: %s" %run)
-            x=f[run+PATH_SCALAR+"/X"][...]
-            y=f[run+PATH_SCALAR+"/Y"][...]                    
-        return x,y
+    for key in f.keys():
+        x=f[key+PATH_SCALAR+"/X"][...]
+        y=f[key+PATH_SCALAR+"/Y"][...]                    
+    return x,y
