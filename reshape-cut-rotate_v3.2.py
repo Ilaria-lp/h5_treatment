@@ -31,12 +31,11 @@ def cut_reshape(in_file, out_fold):
 
         for run in f.keys():
             sample_name = run[19:]
-            print(run)
             date_acq = datetime.strptime(run[3:17], '%Y%m%d %H%M%S')           
             new_map = './'+ NEW_FOLDER + sample_name + date_acq.strftime('_%Y-%m-%d_%H-%M-%S')
     
             print ("Sample_name: %s." %sample_name)
-            print date_acq.strftime('\tAcquisition time: %d/%m/%Y - %H:%M.')
+            print (date_acq.strftime('\tAcquisition time: %d/%m/%Y - %H:%M.'))
             
             try:                
                 x = f[run+PATH_SCALAR+"/X"][...]
@@ -60,11 +59,11 @@ def cut_reshape(in_file, out_fold):
                 break
 
             shape_x, shape_y = count_steps(x), count_steps(y)
-            total_points = shape_x * shape_y
-            
-            print("\tOriginal map shape: (%d, %d), points = %d." %(shape_x, shape_y, total_points) )
+            tot_points_raw = shape_x * shape_y
 
-            # check for beam dump on the BMS signal
+            print("\tOriginal map shape: (%d, %d), points = %d." %(shape_x, shape_y, tot_points_raw) )
+
+            # check for beam dump on the BMS signal (i0)
             bms = f[run+PATH_SCALAR+I0_MONITOR][...]
             beam_lost, valid_pixels = check_bms(bms)
             
@@ -89,48 +88,46 @@ def cut_reshape(in_file, out_fold):
                 print('\tNew map shape: (%d, %d)' %(row, col))
                 new_map += '_cut.h5'           
 
+
             if (row*col==shape_x*shape_y):
                 print('\tNo cutting, just reshaping.\n')
                 print('\tNew map shape: (%d, %d)' %(row, col))
                 new_map += '.h5'                              
 
             with h5py.File(new_map, 'w') as fout:
-                total_point = row * col
+                row = int(row)
+                col = int(col)
+                final_points = row * col
                 
                 # Reshaping TransientVectorData
                 for vectorData in f[run+PATH_VECTOR].keys():
 
                     v = f[run+PATH_VECTOR+"/"+vectorData][...]
-                    v = v[0:total_point]
-                    v = v.reshape((row,col,v.shape[-1]))
+                    v = v[0:final_points]
+                    v = v.reshape(row,col,v.shape[-1])
                     
                     # the rotation of the map is done here:
                     if move_ver:
                        v = np.rot90(v, -1, axes=(1,0))
 
-                    fout.create_dataset(run+PATH_VECTOR+"/"+vectorData, data=v, compression = "gzip", shuffle=True)
+                    fout.create_dataset(run+"/Detector_data/"+vectorData, data=v, compression = "gzip", shuffle=True)
 
                 # Reshaping TransientScalarData:')
                 for scalarData in f[run+PATH_SCALAR].keys():
                     s = f[run+PATH_SCALAR+"/"+scalarData][...]
-                    s = s[0:total_point]
-                    if s.shape[0] == total_point:
+                    s = s[0:final_points]
+                    if s.shape[0] == final_points:
                         s = s.reshape(row, col)
                     if move_ver:
                         s = np.rot90(s, -1, axes=(1,0))
 
-                    fout.create_dataset(run+PATH_SCALAR+"/"+scalarData, data=s)
+                    fout.create_dataset(run+"/Motor_positions/"+scalarData, data=s)
 
                 # Reshaping Positioners (i.e. motor position before map collection)
                 for motor_position in f[run+POSITIONERS].keys():
                     p = f[run+POSITIONERS+"/"+motor_position][...]
-                    p = p[0:total_point]
-                    if p.shape[0] == total_point:
-                        p = p.reshape(row, col)
-                    if move_ver:
-                        s = np.rot90(s, -1, axes=(1,0))
-
-                    fout.create_dataset(run+POSITIONERS+"/"+motor_position, data=p)
+                   
+                    fout.create_dataset(run+"/Starting_positions/"+motor_position, data=p)
 
 
 ####################################################################
