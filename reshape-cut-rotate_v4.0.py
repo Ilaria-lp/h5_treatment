@@ -11,6 +11,7 @@
 from datetime import datetime
 import glob
 import h5py
+import math
 import numpy as np
 import os
 
@@ -24,6 +25,9 @@ NEW_FOLDER = "/cut-reshaped/"
 NEWNAME_APP = "_reshaped.h5"
 I0_MONITOR = "/BMS-T-Average" 
 
+# The motor positions copied to the output file are the following:
+AcceptedList = ['BMS-3-Average','DIODE-Average','X','Y','Z']
+
 def cut_reshape(in_file, out_fold):
     
     with h5py.File(in_file, 'r') as f:
@@ -35,7 +39,7 @@ def cut_reshape(in_file, out_fold):
             new_map = './'+ NEW_FOLDER + sample_name + date_acq.strftime('_%Y-%m-%d_%H-%M-%S')
     
             print ("Sample_name: %s." %sample_name)
-            print (date_acq.strftime('\tAcquisition time: %d/%m/%Y - %H:%M.'))
+            print (date_acq.strftime('\tAcquisition time: %d/%m/%Y - %H:%M:%S.'))
             
             try:                
                 x = f[run+PATH_SCALAR+"/X"][...]
@@ -75,28 +79,27 @@ def cut_reshape(in_file, out_fold):
 
             if move_ver:
                 row = shape_x
-                col = np.round(valid_pixels/shape_x)
-                new_map += '_rot.h5'
+                col = math.floor(valid_pixels/shape_x)
+                new_map += '_rot'
             else:
                 col = shape_y
-                row = np.round(valid_pixels/shape_y)
+                row = math.floor(valid_pixels/shape_y)
                                   
             if valid_pixels < shape_x*shape_y:
                 print('    !\tValid pixels = %s out of %s' %(valid_pixels, shape_x*shape_y))
                 if not beam_lost:
                     print('\tIncomplete map collection found.')
                 print('\tNew map shape: (%d, %d)' %(row, col))
-                new_map += '_cut.h5'           
+                new_map += '_cut'           
 
 
             if (row*col==shape_x*shape_y):
                 print('\tNo cutting, just reshaping.\n')
                 print('\tNew map shape: (%d, %d)' %(row, col))
-                new_map += '.h5'                              
+                
+            new_map += '.h5'                              
 
             with h5py.File(new_map, 'w') as fout:
-                row = int(row)
-                col = int(col)
                 final_points = row * col
                 
                 # Reshaping TransientVectorData
@@ -114,19 +117,18 @@ def cut_reshape(in_file, out_fold):
 
                 # Reshaping TransientScalarData:')
                 for scalarData in f[run+PATH_SCALAR].keys():
-                    s = f[run+PATH_SCALAR+"/"+scalarData][...]
-                    s = s[0:final_points]
-                    if s.shape[0] == final_points:
-                        s = s.reshape(row, col)
-                    if move_ver:
-                        s = np.rot90(s, -1, axes=(1,0))
-
-                    fout.create_dataset(run+"/Motor_positions/"+scalarData, data=s)
+                    if scalarData in AcceptedList:
+                        s = f[run+PATH_SCALAR+"/"+scalarData][...]
+                        s = s[0:final_points]
+                        if s.shape[0] == final_points:
+                            s = s.reshape(row, col)
+                        if move_ver:
+                            s = np.rot90(s, -1, axes=(1,0))
+                        fout.create_dataset(run+"/Motor_positions/"+scalarData, data=s)
 
                 # Reshaping Positioners (i.e. motor position before map collection)
                 for motor_position in f[run+POSITIONERS].keys():
-                    p = f[run+POSITIONERS+"/"+motor_position][...]
-                   
+                    p = f[run+POSITIONERS+"/"+motor_position][...]                   
                     fout.create_dataset(run+"/Starting_positions/"+motor_position, data=p)
 
 
