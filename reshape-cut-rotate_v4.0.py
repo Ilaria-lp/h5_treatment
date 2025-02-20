@@ -23,10 +23,11 @@ PATH_VECTOR = "/Measurement/TransientVectorData"
 POSITIONERS = "/Measurement/Positioners"
 NEW_FOLDER = "/cut-reshaped/"
 NEWNAME_APP = "_reshaped.h5"
-I0_MONITOR = "/BMS-T-Average" 
+I0_MONITOR = "/BMS-T-Average"
 
 # The motor positions copied to the output file are the following:
 AcceptedList = ['BMS-3-Average','DIODE-Average','X','Y','Z']
+# aggiungi LiveTime!
 
 def cut_reshape(in_file, out_fold):
     
@@ -34,8 +35,11 @@ def cut_reshape(in_file, out_fold):
         move_ver = False
 
         for run in f.keys():
+            date_str = 'Run%Y%m%d %H%M%S'
+            # the first part of the string contains date and time of acquisition
+            date_acq = datetime.strptime(run[:18], date_str)     
+            # the rest of the string is the sample_name
             sample_name = run[19:]
-            date_acq = datetime.strptime(run[3:17], '%Y%m%d %H%M%S')           
             new_map = './'+ NEW_FOLDER + sample_name + date_acq.strftime('_%Y-%m-%d_%H-%M-%S')
     
             print ("Sample_name: %s." %sample_name)
@@ -102,6 +106,9 @@ def cut_reshape(in_file, out_fold):
             with h5py.File(new_map, 'w') as fout:
                 final_points = row * col
                 
+                my_comment = 'Test_ciao !!'         
+                fout.create_dataset("Comments", data=my_comment)
+
                 # Reshaping TransientVectorData
                 for vectorData in f[run+PATH_VECTOR].keys():
 
@@ -168,7 +175,7 @@ def run():
             cut_reshape(filename, out_path)
             print('\n- - - - Map {0}/{1} successfully processed.\n'.format(i+1, len(file_list)))
 
-    print('Have a nice day.\n')
+    print('\tHave a nice day.\n')
 
 if __name__ == "__main__":
     run()
