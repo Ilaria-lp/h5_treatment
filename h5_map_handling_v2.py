@@ -16,8 +16,8 @@ def _calculate_new_shape(shape_x, shape_y, valid_pixels, move_ver, new_name, com
     if move_ver:
         row = shape_x
         col = math.floor(valid_pixels/shape_x)
-        new_map += '_rot'
-        comment_line += 'This map has been rotated.\n'
+        new_name += '_rot'
+        comment += 'This map has been rotated.\n'
     else:
         col = shape_y
         row = math.floor(valid_pixels/shape_y)
@@ -26,13 +26,13 @@ def _calculate_new_shape(shape_x, shape_y, valid_pixels, move_ver, new_name, com
         print('    !\tValid pixels = %s out of %s' %(valid_pixels, shape_x*shape_y))
         if not beam_lost:
             print('\tIncomplete map collection found.')
-            comment_line += 'Incomplete acquisition found. The original map was cut to have a rectangular shape.'
+            comment += 'Incomplete acquisition found. The original map was cut to have a rectangular shape.'
         print('\tNew map shape: (%d, %d)' %(row, col))
-        new_map += '_cut'           
+        new_name += '_cut'           
 
     if (row*col==shape_x*shape_y):
-        print('\tNo cutting, just reshaping.\n')
-        comment_line += 'This map was not cut. Only reshaping has been done.'
+        print('\tNo cutting, just reshaping.')
+        comment += 'This map was not cut. Only reshaping has been done.'
         print('\tNew map shape: (%d, %d)' %(row, col))
     
     return row, col, new_name, comment
@@ -50,11 +50,10 @@ def check_bms(bms, comment_line):
             bms = bms[:len(bms)-1]
             beam_lost = True
         else:
-            last-=1
             print('\tLast useful I0 value = %f' %(bms[::-1][0]))
             print('\tI0 at start = %f' %(bms[::1][0]))
             break                    
-    print('  > > > Beam dump/drift: no beam in %s pixels.' %(last+1))
+    print('  > > > Beam dump/drift: no beam in %d pixels.' %(last+1))
     
     if len(bms) == 0:
         warning('No valid pixels, moving on.')
@@ -102,14 +101,14 @@ def orientation(ver,hor):
         move_ver_first = True
         ver, hor = hor, ver        
         return ver, hor, move_ver_first
-    
+     
     # when the horizontal motor moves first, no need to swap rows and columns.
     # this is the most common situation, where no further action is needed.
     elif (hor[1]!=hor[0]) and (ver[1]==ver[0]):
         return ver, hor, move_ver_first
     # if both motors are moved or if none moves, then the map is somewhat broken.
     else:
-        warning('\tSomething is wrong with this map. Please check the file!')
+        warning('\tThe two axes moved together!\nIs this a diagonal linear scan?')
         raise ValueError
 
 
@@ -117,20 +116,39 @@ def read_positions(h5file, path):
     x = np.array(h5file[path+"/X"][...])
     y = np.array(h5file[path+"/Y"][...])
     if len(x)==1 or len(y)==1:        
-        warning('This does not look like a map: is it a linear scan?')
+        warning('This does not look like a map:\nis it a linear scan?')
         raise TypeError
     elif len(np.shape(x)) == 2:
-        warning('This maps seems to be 2D...no need for reshaping. Moving on!')
+        warning('This maps seems to be 2D...no need for reshaping.\nMoving on!')
         raise TypeError
     elif len(np.shape(x)) > 2 or len(np.shape(y)) >2:
-        warning('This maps seems to be have >2 dimensions. Moving on!')
+        warning('This maps seems to be have >2 dimensions.\nMoving on!')
         raise TypeError
     return x,y
 
 
-def warning(message):
-    n = len('\tx  ' + message )
-    n = math.floor(n/4)
-    print('\tx ' + 'x '*(n-2) + 'WARNING' + ' x'*(n-2) + ' x')
-    print('\tx  ' + message + '   x')
-    print('\tx ' + 'x '*(2*n) + 'x')
+def warning(message, indent = 1, width = None, title = None):
+    indent = 2
+    lines = message.split('\n')
+    space = ' ' * indent
+    if not width:
+        width = max(map(len, lines)) 
+    box = f'╔{"═" * (width + indent * 2)}╗\n'  # upper_border
+    if title:
+        box += f'║{space}{title:<{width}}{space}║\n'  # title
+        box += f'║{space}{"-" * len(title):<{width}}{space}║\n'  # underscore
+    box += ''.join([f'║{space}{line:<{width}}{space}║\n' for line in lines])
+    box += f'╚{"═" * (width + indent * 2)}╝'  # lower_border
+    print(box)
+
+
+
+
+def _write_vector_to_h5(v, row, col, rotate, fout):
+    v = v[0:len]
+    v = v.reshape(row,col,v.shape[-1])                   
+    # the rotation of the map is done here:
+    if rotate:
+       v = np.rot90(v, -1, axes=(1,0))
+
+    fout.create_dataset(key+"/Detector_data/"+vectorData, data=v, compression = "gzip", shuffle=True)
