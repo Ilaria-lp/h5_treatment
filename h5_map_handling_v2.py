@@ -1,23 +1,85 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
+__author__      = "Ilaria Carlomagno"
+__license__ = "MIT"
+__version__ = "5.0"
+__email__ = "ilaria.carlomagno@elettra.eu"
+
+#This script does 5 things:
+# 1) Finds the motor positions in the hdf file
+# 2) checks for beam dumps during MAP acquisition
+#   In case BMS is < BMS_MIN, it reshapes the map discarding void pixels
+# 3) discards half-filled rows/columns in case of manual interruption of the map
+# 4) rotates the maps when the acquisition was done "column-first"
+# 5) reshapes the maps so that PyMCA already knows how many columns and rows there are in each file
+
+import datetime
+import glob
 import h5py
 import math
 import numpy as np
+import os
 
+from h5_map_handling import check_bms, count_steps, get_name_and_date, orientation, read_positions, warning
 
-BMS_MIN = 1e-4
-PRECISION = 10**5
+EXT = "h5"
 PATH_SCALAR = "/Measurement/TransientScalarData"
+PATH_VECTOR = "/Measurement/TransientVectorData"
+POSITIONERS = "/Measurement/Positioners"
+NEW_FOLDER = "/cut-reshaped/"
+I0_MONITOR = "/BMS-T-Average"
 
+# The motor positions copied to the output file are the following:
+AcceptedList = ['BMS-3-Average','DIODE-Average','X','Y','Z']
+# aggiungi LiveTime!
 
-def _calculate_new_shape(shape_x, shape_y, valid_pixels, move_ver, new_name, comment):
+def cut_reshape(in_file, out_fold):
+    
+    f = h5py.File(in_file, 'r')
+    move_ver = False
+    comment_line = 'This file has been generated with the script reshape-cut-rotate_V5.\n'      
+    today = datetime.date.today() 
+    comment_line += today.strftime('The original file was processed on: %d/%m/%Y.\n')
+
+    run, sample_name, date_acq = get_name_and_date(f)
+
+    new_map = './'+ NEW_FOLDER + sample_name + date_acq.strftime('_%Y-%m-%d_%H-%M-%S')
+
+    print("Sample_name: %s." %sample_name)
+    print(date_acq.strftime('\tAcquisition time: %d/%m/%Y - %H:%M:%S.'))
+    
+    try:                
+        x, y = read_positions(f, str(run+PATH_SCALAR))
+    except KeyError:
+        warning('HOR/VER movement not found! Moving on!')
+        return None
+    except TypeError:
+        return None
+    # check the map orientation and corrects for it, if necessary 
+    try:
+        x, y, move_ver = orientation(x, y)            
+    except ValueError:
+        return None
+
+    shape_x, shape_y = count_steps(x), count_steps(y)
+    tot_points_raw = shape_x * shape_y
+
+    print("\tOriginal map shape: (%d, %d), points = %d." %(shape_x, shape_y, tot_points_raw) )
+
+    # check for beam dump on the I0 signal (BMS)
+    bms = np.array(f[run+PATH_SCALAR+I0_MONITOR][...])
+    beam_lost, valid_pixels, comment_line = check_bms(bms, comment_line)
+    
+    if valid_pixels == 0:
+        warning('No valid pixels, moving on.')
+        return None
+
     if move_ver:
         row = shape_x
         col = math.floor(valid_pixels/shape_x)
-        new_name += '_rot'
-        comment += 'This map has been rotated.\n'
+        new_map += '_rot'
+        comment_line += 'This map has been rotated.\n'
     else:
         col = shape_y
         row = math.floor(valid_pixels/shape_y)
@@ -26,129 +88,87 @@ def _calculate_new_shape(shape_x, shape_y, valid_pixels, move_ver, new_name, com
         print('    !\tValid pixels = %s out of %s' %(valid_pixels, shape_x*shape_y))
         if not beam_lost:
             print('\tIncomplete map collection found.')
-            comment += 'Incomplete acquisition found. The original map was cut to have a rectangular shape.'
+            comment_line += 'Incomplete acquisition found. The original map was cut to have a rectangular shape.\n'
         print('\tNew map shape: (%d, %d)' %(row, col))
-        new_name += '_cut'           
+        new_map += '_cut'           
 
     if (row*col==shape_x*shape_y):
-        print('\tNo cutting, just reshaping.')
-        comment += 'This map was not cut. Only reshaping has been done.'
+        print('\tNo cutting, just reshaping.\n')
+        comment_line += 'This map was not cut. Only reshaping has been done.\n'
         print('\tNew map shape: (%d, %d)' %(row, col))
-    
-    return row, col, new_name, comment
-
-def check_bms(bms, comment_line):
-    beam_lost = False
-            
-    if bms.min() > BMS_MIN:
-        print("\tNo beam dumps detected.")
-        return (beam_lost, len(bms), comment_line)
-        # if all the pixels are valid, it ends here.
         
-    for last in range(len(bms)):
-        if bms[::-1][0] < BMS_MIN:
-            bms = bms[:len(bms)-1]
-            beam_lost = True
-        else:
-            print('\tLast useful I0 value = %f' %(bms[::-1][0]))
-            print('\tI0 at start = %f' %(bms[::1][0]))
-            break                    
-    print('  > > > Beam dump/drift: no beam in %d pixels.' %(last+1))
+    new_map += '.h5'                              
+    fout =  h5py.File(new_map, 'w')
+    final_points = row * col
     
-    if len(bms) == 0:
-        warning('No valid pixels, moving on.')
-        raise ValueError
+    fout.create_dataset("Comments", data=comment_line)
+
+    # Reshaping Array-Like Data (e.g. SDD signal)
+    for vectorData in f[run+PATH_VECTOR].keys():
+        v = f[run+PATH_VECTOR+"/"+vectorData][...]
+        v = v[0:final_points]
+        v = v.reshape(row,col,v.shape[-1])                   
+        # the rotation of the map is done here:
+        if move_ver:
+           v = np.rot90(v, -1, axes=(1,0))
+
+        fout.create_dataset(run+"/Detector_data/"+vectorData, data=v, compression = "gzip", shuffle=True)
+
+    # Reshaping 1D data (e.g. motor positions, i0, ...)
+    for scalarData in f[run+PATH_SCALAR].keys():
+        if scalarData in AcceptedList or scalarData.endswith('LiveTime'):                
+            s = f[run+PATH_SCALAR+"/"+scalarData][...]
+            s = s[0:final_points]
+            if s.shape[0] == final_points:
+                s = s.reshape(row, col)
+            
+            if move_ver:
+                s = np.rot90(s, -1, axes=(1,0))
+            
+            fout.create_dataset(run+"/Motor_positions/"+scalarData, data=s)
+
+    # Reshaping Starting positions (motor positions right before map collection)
+    for motor_position in f[run+POSITIONERS].keys():
+        p = f[run+POSITIONERS+"/"+motor_position][...]                   
+        fout.create_dataset(run+"/Starting_positions/"+motor_position, data=p)
+
+
+####################################################################
+
+def run():
+    print('\n')
+    print('\t-------------------------------------------------\n')
+    print('\t---------           Welcome!         ------------\n')
+    print("\t---        Let's cut your XRF maps!           ---\n")
+    print('\t-------------------------------------------------\n')
     
-    comment_line += 'The original map was cut until the last completed row/column.\n'
-    return(beam_lost, len(bms), comment_line)
+    in_path = './'
+    out_path = in_path + NEW_FOLDER
+    # if out_path is read only, uncomment next line
+    # out_path = str(input('Where do you want to save the reshaped maps?' ))
+    
+    # checks automatically all the h5 files in the in_path 
+    file_list = glob.glob('{0}/*'.format(in_path)+EXT)
+    print('I found '+str(len(file_list))+' files matching the extension '+EXT+':')
+    print(file_list)
+    print('\n')
+    
+    if len(file_list) == 0:
+        print("\t⚠ Can't do much with 0 files! Sorry!")
+        print("\tMove the maps in the same folder as the program and try again!")   
+    else: 
+        print("\tAll the files mentioned above will be reshaped (and cut, if needed).")
+        print("\t☆ Don't worry: overwriting raw data is not an option. ☆ \n")        
 
-# gives the shape of the array by counting the numbers of different values    
-def count_steps(x):
-    step_x = np.round(np.diff(np.unique(x*PRECISION)).min())/PRECISION 
-    stx = np.round((x-x.min())/step_x).astype(int)  
-    shape_x = stx.max()+1
-    return(shape_x)
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)        
 
-def get_data(h5file, path):
-    info = np.array(h5file[path][...])
-    return info
+        for filename, i in zip(file_list, range(len(file_list))):
+            filename = filename[2:]
+            cut_reshape(filename, out_path)
+            print('\n- - - - Map {0}/{1} successfully processed.\n'.format(i+1, len(file_list)))
 
-# flipping has to be implemented yet! An idea could be starting from the following
-def _descending(j):
-    if (j[0]>j[-1]):
-        to_be_flipped = True
-    else:
-        pass
+    print('\t ☆ Have a nice day ☆ \n')
 
-def get_name_and_date(h5file):
-    key = list(h5file.keys())[0]
-    date_str = 'Run%Y%m%d %H%M%S'
-    # the first part of the string contains date and time of acquisition
-    date_acq = datetime.strptime(key[:18], date_str)     
-    # the rest of the string is the sample_name
-    sample_name = key[19:]
-    return key, sample_name, date_acq
-
-# When the vertical motor moves first, the map is collected filling column after column. 
-# When PyMCA will try to resize the array of XRF data, the correct image will be shown only entering the cols and rows values swapped.
-# The map will have the correct position of the pixel with respect to one another, but it will appear rotated by 90deg counterclockwise.
-# The function takes the array of the x and y positions, and returns them swapped when the vertical motor is moved first. And it returns a flag used for the 90deg clockwise rotation needed to bring the map orientation back to normal. 
-def orientation(ver,hor):
-    move_ver_first = False
- 
-    if (ver[1]!=ver[0]) and (hor[1]==hor[0]):
-        print('\tX (VER) moved first: the map will be rotated to fix data visualization on PyMCA.')      
-        move_ver_first = True
-        ver, hor = hor, ver        
-        return ver, hor, move_ver_first
-     
-    # when the horizontal motor moves first, no need to swap rows and columns.
-    # this is the most common situation, where no further action is needed.
-    elif (hor[1]!=hor[0]) and (ver[1]==ver[0]):
-        return ver, hor, move_ver_first
-    # if both motors are moved or if none moves, then the map is somewhat broken.
-    else:
-        warning('\tThe two axes moved together!\nIs this a diagonal linear scan?')
-        raise ValueError
-
-
-def read_positions(h5file, path):
-    x = np.array(h5file[path+"/X"][...])
-    y = np.array(h5file[path+"/Y"][...])
-    if len(x)==1 or len(y)==1:        
-        warning('This does not look like a map:\nis it a linear scan?')
-        raise TypeError
-    elif len(np.shape(x)) == 2:
-        warning('This maps seems to be 2D...no need for reshaping.\nMoving on!')
-        raise TypeError
-    elif len(np.shape(x)) > 2 or len(np.shape(y)) >2:
-        warning('This maps seems to be have >2 dimensions.\nMoving on!')
-        raise TypeError
-    return x,y
-
-
-def warning(message, indent = 1, width = None, title = None):
-    indent = 2
-    lines = message.split('\n')
-    space = ' ' * indent
-    if not width:
-        width = max(map(len, lines)) 
-    box = f'╔{"═" * (width + indent * 2)}╗\n'  # upper_border
-    if title:
-        box += f'║{space}{title:<{width}}{space}║\n'  # title
-        box += f'║{space}{"-" * len(title):<{width}}{space}║\n'  # underscore
-    box += ''.join([f'║{space}{line:<{width}}{space}║\n' for line in lines])
-    box += f'╚{"═" * (width + indent * 2)}╝'  # lower_border
-    print(box)
-
-
-
-
-def _write_vector_to_h5(v, row, col, rotate, fout):
-    v = v[0:len]
-    v = v.reshape(row,col,v.shape[-1])                   
-    # the rotation of the map is done here:
-    if rotate:
-       v = np.rot90(v, -1, axes=(1,0))
-
-    fout.create_dataset(key+"/Detector_data/"+vectorData, data=v, compression = "gzip", shuffle=True)
+if __name__ == "__main__":
+    run()
