@@ -21,7 +21,7 @@ import os
 EXT = "h5"
 PATH_SCALAR = "/Measurement/TransientScalarData"
 PATH_VECTOR = "/Measurement/TransientVectorData"
-NEW_FOLDER = "/normalised/"
+NEW_FOLDER = "/cumulative_normalised/"
 I0_MONITOR = "/BMS-3-Average/"
 
 def get_name_and_date(h5file):
@@ -42,13 +42,11 @@ def get_name_and_date(h5file):
 
     elif 'SIRIUS3-UP-LiveTime' in scalar:
         print('\tSirius3 found')
-        LIVETIME = "/SIRIUS3-UP-LiveTime/"
-        DATA_PATH = "/SDD#1-Spectra/"        
         fluo_det = 'Sirius'
 
     return sample_name, date_acq, fluo_det
 
-def normalise_to_livetime(h5file):
+def normalise_to_livetime_BRUKER(h5file):
     print('\tNormalising to Bruker LiveTime')
     run = list(h5file.keys())[-1]
     livetime = np.array(h5file[run+PATH_SCALAR+'/SDD#1-LiveTime/'][...])
@@ -100,12 +98,13 @@ def normalise_to_livetime_SIRIUS(h5file):
     
 
 def norm_bms_and_sum(h5file, data):
+    # normalising to the i0
     run = list(h5file.keys())[-1]
     i0 = np.array(h5file[run+PATH_SCALAR+I0_MONITOR][...])
     i0 = i0.reshape(-1,1)
     norm_data = np.divide(data, i0)
 
-    #now normalising to the pixels number
+    # normalising to the pixels number
     pixels = np.shape(data)[0]
     norm_data = np.sum(norm_data, axis=0)
     norm_data /= pixels
@@ -144,13 +143,14 @@ def normalise_h5(in_file, out_fold):
     fout =  open(sum_norm_txt, 'w')
     
     fout.write(comment_line)
-    print('\tNormalising your data to the LiveTime of the fluo detector.')
+    
+    # Normalising your data to the LiveTime of the fluo detector
     if fluo_det is 'Bruker':
-        norm_spec = normalise_to_livetime(f)
+        norm_spec = normalise_to_livetime_BRUKER(f)
     elif fluo_det is 'Sirius':
         norm_spec = normalise_to_livetime_SIRIUS(f)
     
-    print('\tNormalising your data to the i0 and pixel number.')
+    # Normalising your data to the i0 and pixel number
     norm_spec = norm_bms_and_sum(f, norm_spec)
    
     fout.write('#Normalised fluo counts\n')
