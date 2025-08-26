@@ -3,7 +3,7 @@
 
 __author__      = "Ilaria Carlomagno"
 __license__ = "MIT"
-__version__ = "7.0"
+__version__ = "2.0"
 __email__ = "ilaria.carlomagno@elettra.eu"
 
 # This script does these things:
@@ -23,30 +23,82 @@ PATH_SCALAR = "/Measurement/TransientScalarData"
 PATH_VECTOR = "/Measurement/TransientVectorData"
 NEW_FOLDER = "/normalised/"
 I0_MONITOR = "/BMS-3-Average/"
-LIVETIME = "/SDD#1-LiveTime/"
-DATA_PATH = "/SDD#1-Spectra/"
-
 
 def get_name_and_date(h5file):
     key = list(h5file.keys())[0]
+    
     date_str = 'Run%Y%m%d %H%M%S'
     # the first part of the string contains date and time of acquisition
     date_acq = datetime.strptime(key[:18], date_str)     
     # the rest of the string is the sample_name
     sample_name = key[19:]
-    return key, sample_name, date_acq
+    
+    # check which detector was used in the ScalarData folder
+    scalar = h5file[key+PATH_SCALAR].keys()
+    
+    if 'SDD#1-LiveTime' in scalar:
+        print('\tBruker found')
+        fluo_det = 'Bruker'
 
-def normalise_to_livetime(h5file, run):
-    livetime = np.array(h5file[run+PATH_SCALAR+LIVETIME][...])
+    elif 'SIRIUS3-UP-LiveTime' in scalar:
+        print('\tSirius3 found')
+        LIVETIME = "/SIRIUS3-UP-LiveTime/"
+        DATA_PATH = "/SDD#1-Spectra/"        
+        fluo_det = 'Sirius'
+
+    return sample_name, date_acq, fluo_det
+
+def normalise_to_livetime(h5file):
+    print('\tNormalising to Bruker LiveTime')
+    run = list(h5file.keys())[-1]
+    livetime = np.array(h5file[run+PATH_SCALAR+'/SDD#1-LiveTime/'][...])
     livetime = livetime.reshape(-1,1)
     
-    norm_data = np.array(h5file[run+PATH_VECTOR+DATA_PATH][...])
+    norm_data = np.array(h5file[run+PATH_VECTOR+'/SDD#1-Spectra/'][...])
     norm_data = np.divide(norm_data, livetime)
    
-    return norm_data  
+    return norm_data
+
+def normalise_to_livetime_SIRIUS(h5file):
+    print('\tNormalising to Sirius LiveTime')
+    run = list(h5file.keys())[-1]
+    # reading LiveTime 
+    try:    
+        u_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-UP-LiveTime"][...])
+        u_lt = u_lt.reshape(-1,1)
+        m_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-MID-LiveTime"][...])
+        m_lt = m_lt.reshape(-1,1)
+        d_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-DOWN-LiveTime"][...])
+        d_lt = d_lt.reshape(-1,1)
+    except KeyError:
+        u_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-UP-LiveTime"][...])
+        u_lt = u_lt.reshape(-1,1)
+        m_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-MID-LiveTime"][...])
+        m_lt = m_lt.reshape(-1,1)
+        d_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-DOWN-LiveTime"][...])
+        d_lt = d_lt.reshape(-1,1)
+    
+    #avoiding division by 0
+    u_lt = np.where(u_lt==0, 0.001, u_lt)
+    m_lt = np.where(m_lt==0, 0.001, m_lt)
+    d_lt = np.where(d_lt==0, 0.001, d_lt)
+    
+    data_u = np.array(h5file[run+PATH_VECTOR+"/SIRIUS3-UP-Spectrum"][...])
+    data_m = np.array(h5file[run+PATH_VECTOR+"/SIRIUS3-MID-Spectrum"][...])
+    data_d = np.array(h5file[run+PATH_VECTOR+"/SIRIUS3-DOWN-Spectrum"][...])
+    
+    data_u = np.divide(data_u, u_lt)
+    data_m = np.divide(data_m, m_lt)
+    data_d = np.divide(data_d, d_lt)
+
+    # summing the normalised spectra of the 3 elements
+    sum_norm_spec = data_u + data_m + data_d
+    
+    return sum_norm_spec  
     
 
-def norm_bms_and_sum(h5file, data, run):
+def norm_bms_and_sum(h5file, data):
+    run = list(h5file.keys())[-1]
     i0 = np.array(h5file[run+PATH_SCALAR+I0_MONITOR][...])
     i0 = i0.reshape(-1,1)
     norm_data = np.divide(data, i0)
@@ -83,7 +135,7 @@ def normalise_h5(in_file, out_fold):
     today = datetime.today().date()
     comment_line += today.strftime('#The original file was processed on: %d/%m/%Y.\n')
 
-    run, sample_name, date_acq = get_name_and_date(f)
+    sample_name, date_acq, fluo_det = get_name_and_date(f)
 
     sum_norm_txt = './'+ NEW_FOLDER + sample_name
     sum_norm_txt += '_cumulative_norm.txt'                              
@@ -91,10 +143,13 @@ def normalise_h5(in_file, out_fold):
     
     fout.write(comment_line)
     print('\tNormalising your data to the LiveTime of the fluo detector.')
-    norm_spec = normalise_to_livetime(f, run)
+    if fluo_det is 'Bruker':
+        norm_spec = normalise_to_livetime(f)
+    elif fluo_det is 'Sirius':
+        norm_spec = normalise_to_livetime_SIRIUS(f)
     
     print('\tNormalising your data to the i0 and pixel number.')
-    norm_spec = norm_bms_and_sum(f, norm_spec, run)
+    norm_spec = norm_bms_and_sum(f, norm_spec)
    
     fout.write('#Normalised fluo counts\n')
     for i in range(len(norm_spec)):
