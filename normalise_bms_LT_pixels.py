@@ -53,6 +53,8 @@ def normalise_to_livetime(h5file):
     run = list(h5file.keys())[-1]
     livetime = np.array(h5file[run+PATH_SCALAR+'/SDD#1-LiveTime/'][...])
     livetime = livetime.reshape(-1,1)
+    # avoid division by 0
+    livetime = np.where(livetime==0, 1e-5, livetime)
     
     norm_data = np.array(h5file[run+PATH_VECTOR+'/SDD#1-Spectra/'][...])
     norm_data = np.divide(norm_data, livetime)
@@ -78,10 +80,10 @@ def normalise_to_livetime_SIRIUS(h5file):
         d_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-DOWN-LiveTime"][...])
         d_lt = d_lt.reshape(-1,1)
     
-    #avoiding division by 0
-    u_lt = np.where(u_lt==0, 0.001, u_lt)
-    m_lt = np.where(m_lt==0, 0.001, m_lt)
-    d_lt = np.where(d_lt==0, 0.001, d_lt)
+    # avoiding division by 0
+    u_lt = np.where(u_lt==0, 1e-5, u_lt)
+    m_lt = np.where(m_lt==0, 1e-5, m_lt)
+    d_lt = np.where(d_lt==0, 1e-5, d_lt)
     
     data_u = np.array(h5file[run+PATH_VECTOR+"/SIRIUS3-UP-Spectrum"][...])
     data_m = np.array(h5file[run+PATH_VECTOR+"/SIRIUS3-MID-Spectrum"][...])
