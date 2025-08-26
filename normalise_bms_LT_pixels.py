@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__author__      = "Ilaria Carlomagno"
+__author__  = "Ilaria Carlomagno"
 __license__ = "MIT"
 __version__ = "2.0"
-__email__ = "ilaria.carlomagno@elettra.eu"
+__email__   = "ilaria.carlomagno@elettra.eu"
 
 # This script does these things:
 # 1) Finds the sample name in the hdf file
@@ -202,3 +202,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
