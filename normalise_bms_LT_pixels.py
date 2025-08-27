@@ -29,7 +29,7 @@ def get_name_and_date(h5file):
     
     date_str = 'Run%Y%m%d %H%M%S'
     # the first part of the string contains date and time of acquisition
-    date_acq = datetime.strptime(key[:18], date_str)     
+    date_acq = datetime.strptime(key[:18], date_str) 
     # the rest of the string is the sample_name
     sample_name = key[19:]
     
@@ -37,17 +37,17 @@ def get_name_and_date(h5file):
     scalar = h5file[key+PATH_SCALAR].keys()
     
     if 'SDD#1-LiveTime' in scalar:
-        print('\tBruker found')
+        print('\tBruker found.')
         fluo_det = 'Bruker'
 
     elif 'SIRIUS3-UP-LiveTime' in scalar:
-        print('\tSirius3 found')
+        print('\tSirius3 found.')
         fluo_det = 'Sirius'
 
     return sample_name, date_acq, fluo_det
 
 def normalise_to_livetime_BRUKER(h5file):
-    print('\tNormalising to Bruker LiveTime')
+    print('\tNormalising to Bruker LiveTime.')
     run = list(h5file.keys())[-1]
     livetime = np.array(h5file[run+PATH_SCALAR+'/SDD#1-LiveTime/'][...])
     livetime = livetime.reshape(-1,1)
@@ -60,23 +60,22 @@ def normalise_to_livetime_BRUKER(h5file):
     return norm_data
 
 def normalise_to_livetime_SIRIUS(h5file):
-    print('\tNormalising to Sirius LiveTime')
+    print('\tNormalising to Sirius LiveTime.')
     run = list(h5file.keys())[-1]
     # reading LiveTime 
-    try:    
+    try:
         u_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-UP-LiveTime"][...])
-        u_lt = u_lt.reshape(-1,1)
         m_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-MID-LiveTime"][...])
-        m_lt = m_lt.reshape(-1,1)
         d_lt = np.array(h5file[run+PATH_SCALAR+"/SIRIUS3-DOWN-LiveTime"][...])
-        d_lt = d_lt.reshape(-1,1)
+        
     except KeyError:
         u_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-UP-LiveTime"][...])
-        u_lt = u_lt.reshape(-1,1)
         m_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-MID-LiveTime"][...])
-        m_lt = m_lt.reshape(-1,1)
         d_lt = np.array(h5file[run+"/Motor_positions/SIRIUS3-DOWN-LiveTime"][...])
-        d_lt = d_lt.reshape(-1,1)
+    
+    u_lt = u_lt.reshape(-1,1)
+    m_lt = m_lt.reshape(-1,1)
+    d_lt = d_lt.reshape(-1,1)
     
     # avoiding division by 0
     u_lt = np.where(u_lt==0, 1e-5, u_lt)
@@ -94,7 +93,7 @@ def normalise_to_livetime_SIRIUS(h5file):
     # summing the normalised spectra of the 3 elements
     sum_norm_spec = data_u + data_m + data_d
     
-    return sum_norm_spec  
+    return sum_norm_spec
     
 
 def norm_bms_and_sum(h5file, data):
@@ -139,15 +138,15 @@ def normalise_h5(in_file, out_fold):
     sample_name, date_acq, fluo_det = get_name_and_date(f)
 
     sum_norm_txt = './'+ NEW_FOLDER + sample_name
-    sum_norm_txt += '_cumulative_norm.txt'                              
-    fout =  open(sum_norm_txt, 'w')
+    sum_norm_txt += '_cumulative_norm.txt'           
+    fout = open(sum_norm_txt, 'w')
     
     fout.write(comment_line)
     
     # Normalising your data to the LiveTime of the fluo detector
-    if fluo_det is 'Bruker':
+    if fluo_det == 'Bruker':
         norm_spec = normalise_to_livetime_BRUKER(f)
-    elif fluo_det is 'Sirius':
+    elif fluo_det == 'Sirius':
         norm_spec = normalise_to_livetime_SIRIUS(f)
     
     # Normalising your data to the i0 and pixel number
@@ -184,13 +183,13 @@ def run():
     
     if len(file_list) == 0:
         print("\t⚠ Can't do much with 0 files! Sorry!")
-        print("\tMove the maps in the same folder as the program and try again!")   
+        print("\tMove the maps in the same folder as the program and try again!")
     else: 
         print("\tAll the files mentioned above will be reshaped (and cut, if needed).")
-        print("\t☆ Don't worry: overwriting raw data is not an option. ☆ \n")        
+        print("\t☆ Don't worry: overwriting raw data is not an option. ☆ \n")
 
         if not os.path.exists(out_path):
-            os.makedirs(out_path)        
+            os.makedirs(out_path)
 
         for filename, i in zip(file_list, range(len(file_list))):
             print('\tOpening file:',filename)
@@ -202,4 +201,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
